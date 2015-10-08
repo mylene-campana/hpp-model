@@ -159,12 +159,14 @@ namespace hpp {
     /// \return angle between both joint configuration
     static value_type angleBetweenQuaternions (ConfigurationIn_t q1,
 					       ConfigurationIn_t q2,
-					       const size_type& index)
+					       const size_type& index,
+                                               bool& cosIsNegative)
     {
       value_type innerprod = q1.segment (index, 4).dot (q2.segment (index, 4));
       assert (fabs (innerprod) < 1.0001);
       if (innerprod < -1) innerprod = -1;
       if (innerprod >  1) innerprod =  1;
+      cosIsNegative = (innerprod < 0);
       value_type theta = acos (innerprod);
       return theta;
     }
@@ -176,15 +178,20 @@ namespace hpp {
 				      ConfigurationOut_t result)
     {
       // for rotation part, transform roll pitch yaw into quaternion
-      value_type theta = angleBetweenQuaternions (q1, q2, index);
+      bool cosIsNegative;
+      const value_type angle = angleBetweenQuaternions (q1, q2, index, cosIsNegative);
+      const int invertor = (cosIsNegative) ? -1 : 1;
+      const value_type theta = (cosIsNegative) ? (M_PI - angle) : angle;
 
-      if (fabs (theta) > 1e-6) {
+      // theta is between 0 and M_PI/2.
+      // sin(alpha*theta)/sin(theta) in 0 should be computed differently.
+      if (fabs (angle) > 1e-6) {
 	result.segment (index, 4) =
-	  (sin ((1-u)*theta)/sin (theta)) * q1.segment (index, 4) +
+	  (sin ((1-u)*theta)/sin (theta)) * invertor * q1.segment (index, 4) +
 	  (sin (u*theta)/sin (theta)) * q2.segment (index, 4);
       } else {
 	result.segment (index, 4) =
-	  (1-u) * q1.segment (index, 4) + u * q2.segment (index, 4);
+	  (1-u) * invertor * q1.segment (index, 4) + u * q2.segment (index, 4);
       }
     }
 
@@ -192,9 +199,11 @@ namespace hpp {
 					 ConfigurationIn_t q2,
 					 const size_type& index) const
     {
-      value_type theta = angleBetweenQuaternions (q1, q2, index);
+      bool cosIsNegative;
+      value_type theta = angleBetweenQuaternions (q1, q2, index, cosIsNegative);
       assert (theta >= 0);
-      return theta;
+      assert (M_PI - theta >= 0);
+      return (cosIsNegative) ? M_PI - theta : theta;
     }
 
     void SO3JointConfig::integrate (ConfigurationIn_t q,
@@ -208,11 +217,11 @@ namespace hpp {
 
       value_type angle = .5*omega.norm();
       if (angle == 0) {
-	result.segment (indexConfig, 4) = q.segment (indexConfig, 4);
+	result.segment<4> (indexConfig) = q.segment <4> (indexConfig);
 	return;
       }
       // try to keep norm of quaternion close to 1.
-      value_type norm2p = q.segment (indexConfig, 4).squaredNorm ();
+      value_type norm2p = q.segment <4> (indexConfig).squaredNorm ();
       Quaternion_t p ((1.5-.5*norm2p) * q [indexConfig + 0],
 		      (1.5-.5*norm2p) * q [indexConfig + 1],
 		      (1.5-.5*norm2p) * q [indexConfig + 2],
@@ -233,34 +242,24 @@ namespace hpp {
 				     const size_type& indexVelocity,
 				     vectorOut_t result) const
     {
+      const int invertor =
+        (q1.segment <4> (indexConfig)
+         .dot (q2.segment <4> (indexConfig)) < 0
+         ) ? -1 : 1;
+
       // Compute rotation vector between q2 and q1.
-      Quaternion_t p1 (q1 [indexConfig + 0], q1 [indexConfig + 1],
-		       q1 [indexConfig + 2], q1 [indexConfig + 3]);
-      Quaternion_t p2 (q2 [indexConfig + 0], q2 [indexConfig + 1],
-		       q2 [indexConfig + 2], q2 [indexConfig + 3]);
+      Quaternion_t p1 (invertor * q1.segment <4> (indexConfig));
+      Quaternion_t p2 (q2.segment <4> (indexConfig));
       Quaternion_t p (p1*p2.conjugate ());
-      value_type angle; Eigen::Matrix <value_type, 3, 1> axis;
       AngleAxis_t angleAxis (p);
-      angle = angleAxis.angle ();
-      axis = angleAxis.axis ();
-      result [indexVelocity + 0] = angle*axis [0];
-      result [indexVelocity + 1] = angle*axis [1];
-      result [indexVelocity + 2] = angle*axis [2];
+      result.segment <3> (indexVelocity) = angleAxis.angle () * angleAxis.axis ();
     }
 
     /// Normalize configuration of joint
     void SO3JointConfig::normalize (const size_type& index,
 				    ConfigurationOut_t result) const
     {
-      value_type p0 = result [index];
-      value_type p1 = result [index + 1];
-      value_type p2 = result [index + 2];
-      value_type p3 = result [index + 3];
-      value_type d = sqrt (p0*p0 + p1*p1 + p2*p2 + p3*p3);
-      result [index] /= d;
-      result [index + 1] /= d;
-      result [index + 2] /= d;
-      result [index + 3] /= d;
+      result.segment <4> (index).normalize ();
     }
 
     void SO3JointConfig::uniformlySample (const size_type& index,
