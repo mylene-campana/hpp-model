@@ -248,8 +248,18 @@ namespace hpp {
          ) ? -1 : 1;
 
       // Compute rotation vector between q2 and q1.
-      Quaternion_t p1 (invertor * q1.segment <4> (indexConfig));
-      Quaternion_t p2 (q2.segment <4> (indexConfig));
+      // Cannot use the following because eigen convention is (x,y,z,w) when
+      // passing a 4d vector...
+      // Quaternion_t p1 (invertor * q1.segment <4> (indexConfig));
+      // Quaternion_t p2 (q2.segment <4> (indexConfig));
+      Quaternion_t p1 (invertor * q1 [indexConfig + 0],
+                       invertor * q1 [indexConfig + 1],
+                       invertor * q1 [indexConfig + 2],
+                       invertor * q1 [indexConfig + 3]);
+      Quaternion_t p2 (q2 [indexConfig + 0],
+                       q2 [indexConfig + 1],
+                       q2 [indexConfig + 2],
+                       q2 [indexConfig + 3]);
       Quaternion_t p (p1*p2.conjugate ());
       AngleAxis_t angleAxis (p);
       result.segment <3> (indexVelocity) = angleAxis.angle () * angleAxis.axis ();
