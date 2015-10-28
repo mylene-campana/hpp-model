@@ -162,6 +162,10 @@ namespace hpp {
 					       const size_type& index,
                                                bool& cosIsNegative)
     {
+      if (q1.segment (index, 4) == q2.segment (index, 4)) {
+	cosIsNegative = false;
+	return 0;
+      }
       value_type innerprod = q1.segment (index, 4).dot (q2.segment (index, 4));
       assert (fabs (innerprod) < 1.0001);
       if (innerprod < -1) innerprod = -1;
@@ -242,6 +246,10 @@ namespace hpp {
 				     const size_type& indexVelocity,
 				     vectorOut_t result) const
     {
+      if (q1.segment <4> (indexConfig) == q2.segment <4> (indexConfig)) {
+	result.segment <3> (indexVelocity).setZero ();
+	return;
+      }
       const int invertor =
         (q1.segment <4> (indexConfig)
          .dot (q2.segment <4> (indexConfig)) < 0
@@ -397,14 +405,9 @@ namespace hpp {
 				      ConfigurationIn_t q2,
 				      const size_type& index) const
       {
-	// distance on the unit circle
-	value_type innerprod =
-	  q1.segment (index, 2).dot (q2.segment (index, 2));
-	assert (fabs (innerprod) < 1.0001);
-	if (innerprod < -1) innerprod = -1;
-	if (innerprod >  1) innerprod =  1;
-	value_type theta = acos (innerprod);
-	return theta;
+	Eigen::Matrix <value_type, 1, 1> result;
+	difference (q1, q2, index, 0, result);
+	return fabs (result [0]);
       }
 
       void UnBounded::integrate (ConfigurationIn_t q, vectorIn_t v,
