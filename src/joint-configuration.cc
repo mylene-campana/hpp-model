@@ -198,14 +198,18 @@ namespace hpp {
 
       // theta is between 0 and M_PI/2.
       // sin(alpha*theta)/sin(theta) in 0 should be computed differently.
-      if (fabs (angle) > 1e-6) {
+      if (fabs (theta) > 1e-6) {
         const value_type sintheta_inv = 1 / sin (theta);
 	result.segment (index, 4) =
 	  (sin ((1-u)*theta) * sintheta_inv)  * q1.segment (index, 4) +
 	  invertor * (sin (u*theta) * sintheta_inv) * q2.segment (index, 4);
+	assert (result.segment (index, 4).norm () ==
+		result.segment (index, 4).norm ());
       } else {
 	result.segment (index, 4) =
 	  (1-u) * q1.segment (index, 4) + invertor * u * q2.segment (index, 4);
+	assert (result.segment (index, 4).norm () ==
+		result.segment (index, 4).norm ());
       }
     }
 
