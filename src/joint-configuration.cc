@@ -26,6 +26,7 @@
 #include <hpp/fcl/math/transform.h>
 #include <hpp/util/debug.hh>
 #include <hpp/model/joint-configuration.hh>
+#include <hpp/model/configuration.hh>
 
 namespace hpp {
   namespace model {
@@ -203,13 +204,11 @@ namespace hpp {
 	result.segment (index, 4) =
 	  (sin ((1-u)*theta) * sintheta_inv)  * q1.segment (index, 4) +
 	  invertor * (sin (u*theta) * sintheta_inv) * q2.segment (index, 4);
-	assert (result.segment (index, 4).norm () ==
-		result.segment (index, 4).norm ());
+	assert (!result.hasNaN ());
       } else {
 	result.segment (index, 4) =
 	  (1-u) * q1.segment (index, 4) + invertor * u * q2.segment (index, 4);
-	assert (result.segment (index, 4).norm () ==
-		result.segment (index, 4).norm ());
+	assert (!result.hasNaN ());
       }
     }
 
